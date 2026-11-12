@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>GN-XOR · The native error neuron</title>
+<style>
+:root { --bg:#090e19; --panel:#111a2b; --panel2:#141f32; --ink:#e7f2ff; --muted:#9cafc3; --line:#2e435a; --blue:#63c6ff; --gold:#ffc37a; --pink:#ff7dab; --mint:#76dec1; --accent:#7da9ff; }
+* { box-sizing:border-box }
+body { margin:0; font:15px/1.6 system-ui,Segoe UI,Arial,sans-serif; background:radial-gradient(ellipse at 20% 0%,#183250 0%,var(--bg) 60%); color:var(--ink) }
+main { width:min(1150px,calc(100% - 34px)); margin:0 auto 70px; }
+header { padding:42px 0 18px; display:flex;justify-content:space-between;align-items:start;gap:20px;flex-wrap:wrap }
+.eyebrow { font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--mint);font-weight:800 }
+h1 { margin:4px 0 5px;font-size:clamp(2rem,6vw,3.7rem);line-height:1.1;letter-spacing:-.05em }
+h2 {font-size:1.3rem;margin:0 0 5px;letter-spacing:-.025em}
+h3 {font-size:1.02rem;margin:0 0 7px}
+p {margin:7px 0 12px;color:var(--muted)}
+.lead {max-width:770px;color:#c5d8eb;font-size:1.05rem;}
+.tag {font-size:12px;padding:5px 10px;border:1px solid #56728b;border-radius:20px;white-space:nowrap}
+.section {margin-top:24px;background:linear-gradient(145deg,#152338,#101827);border:1px solid var(--line);border-radius:20px;padding:clamp(16px,3vw,27px);box-shadow:0 14px 44px #0003}
+.grid {display:grid;grid-template-columns: minmax(0,1fr) minmax(260px,330px); gap:20px}
+.controlBox {border:1px solid #344b65;background:#0d1727;border-radius:13px;padding:16px}
+label {cursor:pointer;color:#c7d9ef}
+.control {display:flex;justify-content:space-between;gap:12px;align-items:center;margin:11px 0}
+input[type=range] {accent-color:var(--mint);width:100%;cursor:pointer}
+input[type=checkbox] {accent-color:var(--blue);width:19px;height:19px;cursor:pointer}
+button {background:#243853;color:var(--ink);border:1px solid #4a6580;border-radius:9px;padding:9px 14px;font:inherit;cursor:pointer;transition:.15s}
+button:hover {background:#355174} button.active {background:#1e5562;border-color:#63dccd;color:#efffff}
+.buttons {display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}
+table {width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th {text-align:left;padding:10px;border-bottom:1px solid #2c4055}
+th {color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+tr.selected {background:#22546c70}
+.small {font-size:12px;color:var(--muted)}
+.metrics {display:flex;gap:22px;flex-wrap:wrap;margin:14px 0}
+.metric {padding:10px 14px;background:#0d192a;border:1px solid #334a61;border-radius:12px;min-width:130px}
+.metric strong {display:block;color:#e7f6ff;font-size:25px;line-height:1.3;font-variant-numeric:tabular-nums}
+.metric span {font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.canvasWrap {overflow-x:auto;background:#0b1627;border:1px solid #263b54;border-radius:13px;margin:14px 0}
+canvas {display:block;width:100%;min-width:480px;height:auto}
+.legend {display:flex;gap:18px;flex-wrap:wrap;color:#bbd0e2;font-size:13px}
+.dot {display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.ringGrid {display:grid;grid-template-columns: minmax(210px,340px) minmax(0,1fr);gap:25px;align-items:center}
+#orbit {width:100%;max-width:350px;min-width:0}
+details {margin-top:14px}
+summary {cursor:pointer;color:var(--mint)}
+a {color:#9ce6ee} a:hover{color:white}
+footer {color:var(--muted);border-top:1px solid var(--line);padding-top:16px;margin-top:30px;font-size:13px}
+code {color:#c7f5f2}
+@media(max-width:750px) {.grid,.ringGrid{grid-template-columns:1fr}.section {padding:16px}.metric{flex:1}header{padding-top:24px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div>
+<div class="eyebrow">Perception Lab → Geometric Neuron → GN-XOR</div>
+<h1>When a ring is wrong.</h1>
+<p class="lead">A native geometric neuron can stay silent when two signals agree and beat when only one arrives. Watch an eight-unit memory ring compare its own replay against the world.</p>
+</div>
+<div class="tag">Offline · original V27 core · no learning</div>
+</header>
+
+<section class="section">
+<h2>01 / A non-monotone neuron</h2>
+<p>Two sources converge on a receiver through the original <code>setpoint_mod</code> port. The same positive event in both sources can suppress the receiver instead of strengthening it. No XOR condition is coded in the receiving neuron.</p>
+<div class="grid">
+<div>
+<h3>The measured truth table</h3>
+<table aria-label="Native XOR truth table"><thead><tr><th>World A</th><th>Prediction B</th><th>Receiver C</th></tr></thead><tbody id="truth"></tbody></table>
+<div class="canvasWrap"><canvas id="xorTimeline" width="850" height="196" aria-label="Spike timeline for source A, B and receiver C"></canvas></div>
+<div class="legend">
+<span><span class="dot" style="background:var(--blue)"></span>World A</span>
+<span><span class="dot" style="background:var(--gold)"></span>Prediction B</span>
+<span><span class="dot" style="background:var(--pink)"></span>Receiver C</span>
+</div>
+</div>
+<div class="controlBox">
+<h3>Touch the circuit</h3>
+<div class="control"><label for="sourceA">Present A</label><input type="checkbox" id="sourceA" checked></div>
+<div class="control"><label for="sourceB">Present B</label><input type="checkbox" id="sourceB" checked></div>
+<div class="control"><label for="lag">B offset</label><strong id="lagLabel">0 ticks</strong></div>
+<input id="lag" type="range" min="0" max="6" value="0" step="1">
+<div class="control"><label for="weight">Input coupling</label><strong id="weightLabel">−4.50</strong></div>
+<input id="weight" type="range" min="-7" max="-3" value="-4.5" step=".25">
+<div class="metrics"><div class="metric"><strong id="singleStatus">—</strong><span>Receiver event</span></div></div>
+<p class="small">The sliders modify actual edges and event timing. One-tick phase shifts can destroy the cancellation. Relay constants remain 1.6; injected source pulses are −10 for two ticks.</p>
+</div>
+</div>
+</section>
+
+<section class="section">
+<h2>02 / The ring supplies its own prediction</h2>
+<p>The eight blue-green nodes are native relays, each passing a beat to the next. The circulating pattern is seeded once, then returns every 32 ticks. The world signal is compared with one ring node at a separate, native nonlinear receiver.</p>
+<div class="buttons" id="modes">
+<button data-mode="match">World matches</button>
+<button data-mode="omit" class="active">Omit one world event</button>
+<button data-mode="extra">Add an unexpected event</button>
+<button data-mode="offset">World one tick late</button>
+</div>
+<div class="ringGrid">
+<div>
+<canvas id="orbit" width="370" height="370" aria-label="Eight connected relay neurons around a ring"></canvas>
+<div class="small">One source beat moves around the ring every four ticks. The ring is a physical simulation of the original dynamical update, not a rotating bit icon.</div>
+</div>
+<div>
+<div class="metrics">
+<div class="metric"><strong id="ringErrors">—</strong><span>Error beats</span></div>
+<div class="metric"><strong id="ringFirst">—</strong><span>First error at</span></div>
+<div class="metric"><strong id="ringPred">—</strong><span>Replayed beats</span></div>
+</div>
+<h3>Read the three signals</h3>
+<div class="legend">
+<span><span class="dot" style="background:var(--blue)"></span>World</span>
+<span><span class="dot" style="background:var(--gold)"></span>Ring prediction</span>
+<span><span class="dot" style="background:var(--pink)"></span>Error neuron</span>
+</div>
+<p id="description" aria-live="polite"></p>
+<div class="control"><label for="scrub">Simulation tick</label><strong id="tickLabel">0 / 416</strong></div>
+<input type="range" id="scrub" min="0" max="415" step="1" value="168">
+<div class="buttons"><button id="play">▶ Play</button><button id="reset">↺ Restart</button></div>
+</div>
+</div>
+<div class="canvasWrap"><canvas id="ringTimeline" width="1150" height="205" aria-label="World, prediction and mismatch timeline"></canvas></div>
+<p class="small">All plotted event times are generated by running the actual 10-unit GN27 simulator locally in your browser. The world rhythm and the initial ring seed are programmed by the experiment; the error-unit firing is not.</p>
+</section>
+<section class="section">
+<h2>03 / Where this ends — for now</h2>
+<p><strong style="color:var(--ink)">Demonstrated:</strong> a synchronized event-presence XOR in native geometric units and a ring-driven mismatch signal. <strong style="color:var(--ink)">Not demonstrated:</strong> learned prediction, symbol identity, robust asynchronous comparison, neuronal biology, or useful general intelligence. We keep the unusual behavior without inflating what it proves.</p>
+<details><summary>Exact circuit and reproducibility</summary>
+<p>All units use the V27 lookup table of 600 square sizes, the original four-tick pipeline and the 50-sample variance term. Edges from A and B to C are −4.5 by default. Ring edges are −6.0, and the ring has eight nodes. A source pulse of −10 is applied for two ticks through <code>setpoint_mod</code>. Ring recurrence needs no repeated prediction injections.</p>
+<p><a href="https://github.com/anttiluode/GN-XOR">Repository and test code</a> · <a href="https://github.com/anttiluode/GeometricNeuronV27">V27 source</a> · <a href="https://github.com/anttiluode/GeometricNeuronSurfaceListener">V26 experiments</a></p>
+</details>
+</section>
+<footer>GN-XOR · November 12, 2026 · Native dynamics first. Distinguish simulation from analogy, and measurements from hopes.</footer>
+</main>
+<script src="taps.js"></script>
+<script src="v27.js"></script>
+<script src="demo.js"></script>
+</body>
+</html>
